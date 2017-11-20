@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<title>UBCourse Visualization</title>
+		<script type="text/javascript" src="d3.js"></script>
+		<style type="text/css">
+			circle text {
+			stroke:#333;
+			cursos:pointer;
+			}
+		</style>
+	</head>
+	<body>
+		<script type="text/javascript">
+	var nodes = [];
+	var edges = [];
+	//Width and height
+	var w = 500;
+	var h = 300;
+
+	d3.csv("small.csv", function(nodes_data){
+			//nodes[d.Course] = d.name
+			nodes = nodes_data;
+			console.log(nodes);
+
+			//nodes = nodes[0]; // nodes[0] is the array...
+
+
+			var getIndex = function(name) {
+				for(i = 0; i < nodes.length; i++) {
+					if(nodes[i].course == name) {
+						return i;
+					}
+				}
+				return -1;
+			}
+
+			// define a conversion function
+			var rowConverter = function(d) {
+				return {
+					source: getIndex(d.source), //No conversion
+					target: getIndex(d.target), // switch edges direction later
+					//weight: parseFloat(d.weight)
+				};
+			}
+
+			d3.csv("smallprereq.csv", rowConverter, function(edges_data){
+						//nodes[d.Course] = d.name;
+						//edges.push(d);
+						edges = edges_data;
+					
+				//Initialize a simple force layout, using the nodes and edges in dataset
+					var force = d3.forceSimulation(nodes)
+								  .force("charge", d3.forceManyBody())
+								  .force("link", d3.forceLink(edges))
+								  .force("center", d3.forceCenter().x(w/2).y(h/2));
+
+					var colors = d3.scaleOrdinal(d3.schemeCategory10);
+
+					//Create SVG element
+					var svg = d3.select("body")
+								.append("svg")
+								.attr("width", w)
+								.attr("height", h);
+					
+					//Create edges as lines
+					var edgesLines = svg.selectAll("line")
+						.data(edges)
+						.enter()
+						.append("line")
+						.style("stroke", "#ccc")
+						.style("stroke-width", 1);
+					
+					//Create nodes as circles
+					var nodesCircles = svg.selectAll("circle")
+						.data(nodes)
+						.enter()
+						.append("circle")
+						.attr("r", 10)
+						.style("fill", function(d, i) {
+							return colors(i);
+						})
+						.call(d3.drag()  //Define what to do on drag events
+							.on("start", dragStarted)
+							.on("drag", dragging)
+							.on("end", dragEnded));
+
+					var nodeLabels = nodesCircles.append("text")
+												.attr("dx", 12)
+      											.attr("dy", ".35em")
+      											.text(function(d) { return d.course });
+
+
+						//Add a simple tooltip
+						nodesCircles.append("title")
+							 .text(function(d) {
+								return d.course;
+							 });
+					
+					//Every time the simulation "ticks", this will be called
+					force.on("tick", function() {
+
+						edgesLines.attr("x1", function(d) { return d.source.x; })
+							 .attr("y1", function(d) { return d.source.y; })
+							 .attr("x2", function(d) { return d.target.x; })
+							 .attr("y2", function(d) { return d.target.y; });
+					
+						nodesCircles.attr("cx", function(d) { return d.x; })
+							 .attr("cy", function(d) { return d.y; });
+			
+					});
+
+					//Define drag event functions
+					function dragStarted(d) {
+						if (!d3.event.active) force.alphaTarget(0.3).restart();
+						d.fx = d.x;
+						d.fy = d.y;
+					}
+
+					function dragging(d) {
+						d.fx = d3.event.x;
+						d.fy = d3.event.y;
+					}
+
+					function dragEnded(d) {
+						if (!d3.event.active) force.alphaTarget(0);
+						d.fx = null;
+						d.fy = null;
+					}
+			});
+	});
+
+		</script>
+	</body>
+</html>
