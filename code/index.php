@@ -135,6 +135,23 @@ echo "<p> Data Processed</p>";
 	$result->fetch();
 	echo $course_name.' has '.$or_pre_req.' as or pre-requisites'.'</br>';
 	$result->close();
+
+	//either_or_list
+	$query = "SELECT either_pre_req, or_pre_req FROM either_or_list WHERE course_name = ?";
+	$result = $conn->prepare($query);
+	if($conn->prepare($query)){
+	    $result->bind_param("s", $course);
+	    $result->execute();
+	    //rest of code here
+	}else{
+	   //error !! don't go further
+	   echo 'Fourth query failed: ' . $mysqli->error;
+	}
+	$result->bind_result($either_pre_req_pair, $or_pre_req_pair);
+	$result->fetch();
+	echo $course_name.' has '.$either_pre_req_pair.$or_pre_req_pair.' as either pre-requisites pair'.'</br>';
+	$result->close();
+
 	// process readed data in normal_re_req list
 	$normal_pre_req_all = [];
 	$either_pre_req_all = [];
@@ -150,6 +167,11 @@ echo "<p> Data Processed</p>";
 	if (strlen($or_pre_req)>0){
 		$or_pre_req_all = process_allof_str($or_pre_req);
 		// print_r($or_pre_req_all);
+	}
+	if (strlen($either_pre_req_pair)>0){
+		$either_pre_req_pair_all = process_allof_str($either_pre_req_pair);
+		$or_pre_req_pair_all = process_allof_str($or_pre_req_pair);
+		// print_r($either_pre_req_all);
 	}
 	// $allof_all = $normal_pre_req_all['allof'];
 	// $allof_all = array_merge($allof_all, $either_pre_req_all['allof']);
@@ -179,6 +201,9 @@ echo "<p> Data Processed</p>";
     </div>
     <p id="demo"></p>
 	<script>
+		var global_normal = [];
+		var global_either = [];
+		var global_or = [];
 		var w = window.innerWidth;
 		var h = window.innerHeight;
 		var cy =  cytoscape({
@@ -213,7 +238,7 @@ echo "<p> Data Processed</p>";
 		    {
 		    selector: 'edge',
 		    css: {
-		        'target-arrow-shape': 'triangle'
+		        // 'target-arrow-shape': 'triangle'
 		      }
 		    },
 		    {
@@ -231,6 +256,184 @@ echo "<p> Data Processed</p>";
 			    padding: 5
 			}
 		});
+		cy.on('tap', 'node', function(){
+			var nodes = this;
+			var node2 = this;
+			var tapped = nodes;
+			var food = [];
+			var selected_course = this.id();
+			if (this.id()=='orlist'){
+				global_either = [];
+				for(;;){
+				    var connectedEdges = nodes.connectedEdges(function(el){
+				      return !el.target().anySame( nodes );
+				    });
+				    var connectedNodes = connectedEdges.targets();
+				    Array.prototype.push.apply( food, connectedNodes );
+				    nodes = connectedNodes;
+
+				    if( nodes.empty() ){ 
+				    	break; 
+				    }
+				    
+				}
+				console.log(food);
+				for( var i = food.length - 1; i >= 0; i-- ){ (function(){
+				    var thisFood = food[i];
+				    var eater = thisFood.connectedEdges(function(el){
+				    	return el.target().same(thisFood);
+				    }).source();
+
+				    thisFood.delay( delay, function(){
+				    	
+				    } ).animate({
+				    	css: {
+					        'width': 10,
+					        'height': 10,
+					        'border-width': 0,
+					        'opacity': 0
+				      }
+				    }, {
+				    	duration: duration,
+				    	complete: function(){
+				    		thisFood.remove();
+				      }
+				    });
+				    delay += duration;
+				})(); }
+			}else if (this.id()=='eitherlist'){
+				global_or = [];
+				for(;;){
+				    var connectedEdges = node2.connectedEdges(function(el){
+				      return !el.source().anySame( node2 );
+				    });
+				    var connectedNodes = connectedEdges.sources();
+				    Array.prototype.unshift.apply( food, connectedNodes );
+				    node2 = connectedNodes;
+				    // console.log(node2.id());
+				    if( node2.empty() ){ 
+				    	break; 
+				    }
+				    else{
+				    	lastnode = node2;
+				    }
+				}
+				//find leaves of child nodes in the 'orlist', and add to the end of the food array
+				var child_of_or_list = cy.elements('edge[target="eitherlist"]');
+      			var or_list_to_remove = child_of_or_list.source();
+      			var or_list_childs_to_remove = or_list_to_remove.descendants();
+      			or_list_childs_to_remove.forEach(function( ele ){
+      				console.log( ele.id() );
+      				// get sources/targets for these ele
+					// var temp_pre_reqs_to_remove = ele.children();
+					// temp_pre_reqs_to_remove.forEach(function( eles ){
+					// 	console.log( eles.id() );
+					// });
+				});
+      			// console.log(or_list_childs_to_remove.id());
+      			// var connectedNodes = or_list_childs_to_remove.targets();
+      			// console.log(or_list_childs_to_remove.id());
+				// Array.prototype.push.apply( food, or_list_childs_to_remove );
+      			// then, the same as in orlist
+				for( var i = food.length - 1; i >= 0; i-- ){ (function(){
+				    var thisFood = food[i];
+				    var eater = thisFood.connectedEdges(function(el){
+				    	return el.target().same(thisFood);
+				    }).source();
+
+				    thisFood.delay( delay, function(){
+				    	
+				    } ).animate({
+				    	css: {
+					        'width': 10,
+					        'height': 10,
+					        'border-width': 0,
+					        'opacity': 0
+				      }
+				    }, {
+				    	duration: duration,
+				    	complete: function(){
+				    		thisFood.remove();
+				      }
+				    });
+				    delay += duration;
+				})(); }
+			}else{
+				var lastnode = nodes;
+				for(;;){
+				    var connectedEdges = nodes.connectedEdges(function(el){
+				      return !el.target().anySame( nodes );
+				    });
+				    var connectedNodes = connectedEdges.targets();
+				    Array.prototype.push.apply( food, connectedNodes );
+				    nodes = connectedNodes;
+
+				    if( nodes.empty() ){ 
+				    	break; 
+				    }
+				    
+				}
+				Array.prototype.unshift.apply( food, node2 );
+				//find the root
+				for(;;){
+				    var connectedEdges = node2.connectedEdges(function(el){
+				      return !el.source().anySame( node2 );
+				    });
+				    var connectedNodes = connectedEdges.sources();
+				    Array.prototype.unshift.apply( food, connectedNodes );
+				    node2 = connectedNodes;
+				    // console.log(node2.id());
+				    if( node2.empty() ){ 
+				    	break; 
+				    }
+				    else{
+				    	lastnode = node2;
+				    }
+				}
+				food.shift();
+				// remian the top box
+				if (lastnode.id()!='eitherlist' && lastnode.id()!='orlist'){
+					lastnode.css({label: selected_course});
+					if (lastnode.id().includes('Group_n')){
+						global_normal=global_normal.concat(selected_course);
+						console.log(global_normal);
+					} else if(lastnode.id().includes('Group_e')){
+						global_either=global_either.concat(selected_course);
+						console.log(global_either);
+					}else if(lastnode.id().includes('Group_o')){
+						global_or=global_or.concat(selected_course);
+						console.log(global_or);
+					}
+				}
+				console.log(lastnode.id());
+				// console.log(lastnode.label());
+				var delay = 0;
+				var duration = 500;
+				for( var i = food.length - 1; i >= 0; i-- ){ (function(){
+				    var thisFood = food[i];
+				    var eater = thisFood.connectedEdges(function(el){
+				    	return el.target().same(thisFood);
+				    }).source();
+
+				    thisFood.delay( delay, function(){
+				    	
+				    } ).animate({
+				    	css: {
+					        'width': 10,
+					        'height': 10,
+					        'border-width': 0,
+					        'opacity': 0
+				      }
+				    }, {
+				    	duration: duration,
+				    	complete: function(){
+				    		thisFood.remove();
+				      }
+				    });
+				    delay += duration;
+				})(); } // for
+			}
+		}); // on tap
 		var start_w = w/6;
 		var start_h = h/6;
 		var vertical_gap = 30;
@@ -240,16 +443,132 @@ echo "<p> Data Processed</p>";
 		var normal_pre_req_all = <?php echo json_encode($normal_pre_req_all, JSON_PRETTY_PRINT) ?>;
 		var either_pre_req_all = <?php echo json_encode($either_pre_req_all, JSON_PRETTY_PRINT) ?>;
 		var or_pre_req_all = <?php echo json_encode($or_pre_req_all, JSON_PRETTY_PRINT) ?>;
+		var either_pre_req_pair_all = <?php echo json_encode($either_pre_req_pair_all, JSON_PRETTY_PRINT) ?>;
+		var either_pre_req_pair_all = <?php echo json_encode($either_pre_req_pair_all, JSON_PRETTY_PRINT) ?>;
 		// alert(book.oneof);
 		var normal_list_oneof_iter = normal_pre_req_all['oneof'][0];
-		for (var i = 0; i < normal_list_oneof_iter.length; i++){
-		    var normal_list_oneof_iter_inner = normal_list_oneof_iter[i];
-		    for (var j = 0; j < normal_list_oneof_iter_inner.length; j++){
-		    	cy.add({ data: { id: normal_list_oneof_iter_inner[j]}, position: { x: start_w+horizontal_gap*i, y: start_h+vertical_gap*j } });
-		    }
+		var normal_list_allof_iter = normal_pre_req_all['allof'];
+		cy.add({ data: { id: 'normalist' } });
+		var additional_width = 0;
+		if (normal_pre_req_all['oneof'].length >0){
+			for (var i = 0; i < normal_list_oneof_iter.length; i++){
+			    var normal_list_oneof_iter_inner = normal_list_oneof_iter[i];
+			    var gourp_name_normal_list = (i+1).toString();
+			    gourp_name_normal_list = 'Group_n '.concat(gourp_name_normal_list);
+			    cy.add({ data: { id: gourp_name_normal_list, parent: 'normalist'}, position: { x: start_w+horizontal_gap*i, y: start_h-vertical_gap-20 } });
+			    for (var j = 0; j < normal_list_oneof_iter_inner.length; j++){
+			    	// cy.add({ data: { id: normal_list_oneof_iter_inner[j], parent: 'normalist'}, position: { x: start_w+horizontal_gap*i, y: start_h+vertical_gap*j } });
+			    	cy.add({ data: { id: normal_list_oneof_iter_inner[j],}, position: { x: start_w+horizontal_gap*i, y: start_h+vertical_gap*j } });
+			    	// cy.add({ data: { id: normal_list_oneof_iter_inner[j]}, position: { x: start_w+horizontal_gap*i, y: start_h+vertical_gap*j } });
+			    	if (j>0){
+			    		var link_name_normal_list = (i+j).toString();
+			    		link_name_normal_list = link_name_normal_list.concat('normal_list')
+			    		cy.add({ data: { link_name_normal_list, source: normal_list_oneof_iter_inner[j-1], target: normal_list_oneof_iter_inner[j] } })
+			    	}
+			    	if (j==0){
+			    		cy.add({ data: { id:'link_normal_list'.concat((i).toString()), source: gourp_name_normal_list , target: normal_list_oneof_iter_inner[j] } })
+			    	}
+			    	additional_width = horizontal_gap*i;
+			    	// cy.add({data: { id: (i+j).toString() , source: normal_list_oneof_iter_inner[j], target: main_course }});
+			    }
+			}
+			start_w = start_w+additional_width+horizontal_gap+30;
+			additional_width = 0;
 		}
-		// document.getElementById("demo").innerHTML = either_pre_req_all['allof'][0]; 
-		cy.add({ data: { id: main_course}, position: { x: w/2, y: start_h-60 } });
+		// cy.add({ data: { id:'afdafa', source: 'MATH152', target: 'Group 0' } })
+		if (normal_list_allof_iter.length >0){
+			for (var i = 0; i < normal_list_allof_iter.length; i++){
+				cy.add({ data: { id: normal_list_allof_iter[i], parent: 'normalist'}, position: { x: start_w+horizontal_gap*i, y: start_h-vertical_gap-20} });
+			    	additional_width = horizontal_gap*i;
+			    global_normal = global_normal.concat(normal_list_allof_iter[i]);
+			}
+			start_w = start_w+additional_width+horizontal_gap+30;
+		}
+		
+		var either_list_oneof_iter = either_pre_req_all['oneof'][0];
+		var eitherl_list_allof_iter = either_pre_req_all['allof'];
+		// start_w = start_w+300;
+		// cy.add({ data: { id: 'eitherlist' }, position:{x:start_w,y:start_h}});
+		cy.add({ data: { id: 'eitherlist' }});
+		// cy.add({ data: { id: eitherl_list_allof_iter[0] }});
+		if (either_pre_req_all['oneof'].length >0){
+			for (var i = 0; i < either_list_oneof_iter.length; i++){
+			    var either_list_oneof_iter_inner = either_list_oneof_iter[i];
+			    var gourp_name_either_list = (i+1).toString();
+			    gourp_name_either_list = 'Group_e '.concat(gourp_name_either_list);
+			    cy.add({ data: { id: gourp_name_either_list, parent: 'eitherlist'}, position: { x: start_w+horizontal_gap*i, y: start_h-vertical_gap-20 } });
+			    for (var j = 0; j < either_list_oneof_iter_inner.length; j++){
+			    	// cy.add({ data: { id: normal_list_oneof_iter_inner[j], parent: 'normalist'}, position: { x: start_w+horizontal_gap*i, y: start_h+vertical_gap*j } });
+			    	cy.add({ data: { id: either_list_oneof_iter_inner[j],}, position: { x: start_w+horizontal_gap*i, y: start_h+vertical_gap*j } });
+			    	// cy.add({ data: { id: normal_list_oneof_iter_inner[j]}, position: { x: start_w+horizontal_gap*i, y: start_h+vertical_gap*j } });
+			    	if (j>0){
+			    		var link_name_either_list = (i+j).toString();
+			    		link_name_either_list = link_name_either_list.concat('normal_list')
+			    		cy.add({ data: { link_name_either_list, source: either_list_oneof_iter_inner[j-1], target: either_list_oneof_iter_inner[j] } })
+			    	}
+			    	if (j==0){
+			    		cy.add({ data: { id:'link_either_list'.concat((i).toString()), source: gourp_name_either_list , target: either_list_oneof_iter_inner[j] } })
+			    	}
+			    	additional_width = horizontal_gap*i;
+			    	// cy.add({data: { id: (i+j).toString() , source: normal_list_oneof_iter_inner[j], target: main_course }});
+			    }
+			}
+			start_w = start_w+additional_width+horizontal_gap+30;
+			additional_width = 0;
+		}
+		if (eitherl_list_allof_iter.length >0){
+			for (var i = 0; i < eitherl_list_allof_iter.length; i++){
+				cy.add({ data: { id: eitherl_list_allof_iter[i], parent: 'eitherlist'}, position: { x: start_w+horizontal_gap*i, y: start_h-vertical_gap-20} });
+			    	additional_width = horizontal_gap*i;
+			    global_either = global_either.concat(eitherl_list_allof_iter[i]);
+			    console.log(global_either);
+			}
+			start_w = start_w+additional_width+horizontal_gap+30;
+		}
+		var or_list_oneof_iter = or_pre_req_all['oneof'][0];
+		var or_list_allof_iter = or_pre_req_all['allof'];
+		// start_w = start_w+300;
+		// cy.add({ data: { id: 'eitherlist' }, position:{x:start_w,y:start_h}});
+		cy.add({ data: { id: 'orlist' }});
+		// cy.add({ data: { id: eitherl_list_allof_iter[0] }});
+		if (or_pre_req_all['oneof'].length >0){
+			for (var i = 0; i < or_list_oneof_iter.length; i++){
+			    var or_list_oneof_iter_inner = or_list_oneof_iter[i];
+			    var gourp_name_or_list = (i+1).toString();
+			    gourp_name_or_list = 'Group_o '.concat(gourp_name_or_list);
+			    cy.add({ data: { id: gourp_name_or_list, parent: 'orlist'}, position: { x: start_w+horizontal_gap*i, y: start_h-vertical_gap-20 } });
+			    for (var j = 0; j < or_list_oneof_iter_inner.length; j++){
+			    	// cy.add({ data: { id: normal_list_oneof_iter_inner[j], parent: 'normalist'}, position: { x: start_w+horizontal_gap*i, y: start_h+vertical_gap*j } });
+			    	cy.add({ data: { id: or_list_oneof_iter_inner[j],}, position: { x: start_w+horizontal_gap*i, y: start_h+vertical_gap*j } });
+			    	// cy.add({ data: { id: normal_list_oneof_iter_inner[j]}, position: { x: start_w+horizontal_gap*i, y: start_h+vertical_gap*j } });
+			    	if (j>0){
+			    		var link_name_or_list = (i+j).toString();
+			    		link_name_or_list = link_name_or_list.concat('normal_list')
+			    		cy.add({ data: { link_name_or_list, source: or_list_oneof_iter_inner[j-1], target: or_list_oneof_iter_inner[j] } })
+			    	}
+			    	if (j==0){
+			    		cy.add({ data: { id:'link_or_list'.concat((i).toString()), source: gourp_name_or_list , target: or_list_oneof_iter_inner[j] } })
+			    	}
+			    	additional_width = horizontal_gap*i;
+			    	// cy.add({data: { id: (i+j).toString() , source: normal_list_oneof_iter_inner[j], target: main_course }});
+			    }
+			}
+			start_w = start_w+additional_width+horizontal_gap+30;
+			additional_width = 0;
+		}
+		if (or_list_allof_iter.length >0){
+			for (var i = 0; i < or_list_allof_iter.length; i++){
+				cy.add({ data: { id: or_list_allof_iter[i], parent: 'orlist'}, position: { x: start_w+horizontal_gap*i, y: start_h-vertical_gap-20} });
+			    	additional_width = horizontal_gap*i;
+			    global_or = global_or.concat(or_list_allof_iter[i]);
+			    console.log(global_or);
+			}
+			start_w = start_w+additional_width+horizontal_gap+30;
+
+		}
+		cy.add({ data: { id: main_course}, position: { x: w/2, y: start_h-60-vertical_gap-20 } });
+		cy.add({ data: { id: 'ad', source: 'orlist', target: 'eitherlist' } })
+		// cy.add({ data: { id: 'ad', source: 'MATH152', target: 'MATH221' } })
 		// cy.add({ data: { id: normal_pre_req_all['oneof'][0][0][0], credit: 4 }, position: { x: start_h+horizontal_gap, y: start_w+vertical_gap} });
 		// cy.add({ data: { id: 'cs', source: main_course, target: either_pre_req } });
 	</script>
